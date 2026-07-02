@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D0D1A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<title>Aura — Your Life Companion</title>
+<style>
+:root{
+  --bg:#0D0D1A; --panel:#161626; --panel2:#1E1E32;
+  --ink:#F0EEFF; --ink-dim:#8884AA; --line:#2A2A44;
+  --accent:#A78BFA; --accent2:#F472B6; --good:#34D399; --warn:#FBBF24; --danger:#F87171;
+  --font:'Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--line);flex-shrink:0;}
+.appname{font-weight:700;font-size:1.1rem;letter-spacing:-0.02em;}
+.appname span{color:var(--accent);}
+.topbar-right{display:flex;gap:8px;}
+.icon-btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:6px 10px;font-size:0.8rem;cursor:pointer;}
+
+/* Avatar area */
+.avatar-section{display:flex;flex-direction:column;align-items:center;padding:16px 16px 8px;flex-shrink:0;}
+.avatar-wrap{position:relative;width:130px;height:130px;}
+#avatarSvg{width:130px;height:130px;filter:drop-shadow(0 0 18px var(--glow,#A78BFA55));}
+.emotion-badge{position:absolute;bottom:0;right:0;background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:3px 8px;font-size:0.72rem;}
+.aura-name{font-weight:700;font-size:1rem;margin-top:6px;color:var(--accent);}
+.aura-status{font-size:0.72rem;color:var(--ink-dim);margin-top:2px;min-height:18px;text-align:center;}
+
+/* Chat area */
+.chat-wrap{flex:1;overflow-y:auto;padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+.msg{max-width:82%;padding:10px 13px;border-radius:16px;font-size:0.88rem;line-height:1.5;animation:fadeIn .25s ease;}
+.msg.user{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px;}
+.msg.aura{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px;}
+.msg.aura .emotion-line{font-size:0.68rem;color:var(--ink-dim);margin-bottom:4px;}
+.msg.warn-msg{border-left:3px solid var(--warn);}
+.msg.danger-msg{border-left:3px solid var(--danger);}
+.msg.good-msg{border-left:3px solid var(--good);}
+.msg.reminder-chip{background:var(--panel2);border:1px solid var(--warn);color:var(--warn);font-size:0.78rem;align-self:center;padding:6px 12px;border-radius:20px;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+/* Typing indicator */
+.typing{display:flex;gap:4px;padding:12px 14px;align-self:flex-start;}
+.typing span{width:7px;height:7px;background:var(--ink-dim);border-radius:50%;animation:bounce 1.2s infinite;}
+.typing span:nth-child(2){animation-delay:.2s;}
+.typing span:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,80%,100%{transform:translateY(0);}40%{transform:translateY(-6px);}}
+
+/* Memory panel */
+.memory-panel{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;flex-direction:column;}
+.memory-panel.hidden{display:none;}
+.memory-inner{background:var(--panel);margin:auto;width:100%;max-width:460px;height:100%;display:flex;flex-direction:column;}
+.memory-head{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-weight:700;}
+.memory-close{background:none;border:none;color:var(--ink-dim);font-size:1.2rem;cursor:pointer;}
+.memory-list{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;}
+.mem-item{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 13px;font-size:0.83rem;}
+.mem-item .mem-date{font-size:0.65rem;color:var(--ink-dim);margin-bottom:4px;}
+.mem-item .mem-cat{font-size:0.65rem;padding:2px 7px;border-radius:10px;background:var(--accent);color:#fff;display:inline-block;margin-bottom:4px;}
+.mem-del{float:right;background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.8rem;}
+
+/* Reminders panel */
+.rem-panel{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;flex-direction:column;}
+.rem-panel.hidden{display:none;}
+.rem-inner{background:var(--panel);margin:auto;width:100%;max-width:460px;padding:16px;border-radius:20px 20px 0 0;margin-top:auto;}
+.rem-head{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:12px;}
+.rem-list{display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow-y:auto;}
+.rem-item{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border:1px solid var(--warn);border-radius:10px;padding:9px 12px;font-size:0.83rem;}
+
+/* Setup panel */
+.setup-panel{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:16px;}
+.setup-panel.hidden{display:none;}
+.setup-panel h2{font-size:1.4rem;font-weight:700;}
+.setup-panel h2 span{color:var(--accent);}
+.setup-panel p{color:var(--ink-dim);font-size:0.85rem;text-align:center;max-width:320px;line-height:1.5;}
+.setup-input{width:100%;max-width:360px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:0.9rem;}
+.setup-name{width:100%;max-width:360px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:0.9rem;}
+.setup-btn{width:100%;max-width:360px;background:var(--accent);border:none;color:#fff;font-weight:700;border-radius:12px;padding:13px;font-size:1rem;cursor:pointer;}
+.setup-skip{color:var(--ink-dim);font-size:0.78rem;cursor:pointer;text-decoration:underline;}
+
+/* Input bar */
+.input-bar{display:flex;gap:8px;padding:10px 14px 16px;border-top:1px solid var(--line);flex-shrink:0;align-items:flex-end;}
+.input-bar textarea{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:14px;padding:10px 13px;font-size:0.88rem;font-family:var(--font);resize:none;max-height:100px;min-height:42px;overflow-y:auto;line-height:1.4;}
+.input-bar textarea:focus{outline:none;border-color:var(--accent);}
+.send-btn{background:var(--accent);border:none;color:#fff;border-radius:12px;padding:10px 14px;font-size:1rem;cursor:pointer;flex-shrink:0;height:42px;}
+.mic-btn{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:10px 12px;font-size:1rem;cursor:pointer;flex-shrink:0;height:42px;transition:all .2s;}
+.mic-btn.listening{background:var(--danger);border-color:var(--danger);color:#fff;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+
+::-webkit-scrollbar{width:0;}
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div class="setup-panel" id="setupPanel">
+  <svg width="70" height="70" viewBox="0 0 70 70"><circle cx="35" cy="35" r="35" fill="#A78BFA33"/><circle cx="35" cy="28" r="14" fill="#A78BFA"/><ellipse cx="35" cy="58" rx="18" ry="10" fill="#A78BFA"/></svg>
+  <h2>Meet <span>Aura</span></h2>
+  <p>Your personal AI life companion — she listens, remembers, guides, and cares about you.</p>
+  <input class="setup-name" id="setupName" placeholder="Your name (so Aura can call you)">
+  <input class="setup-input" id="setupKey" placeholder="Gemini API key (AIza...) — free at aistudio.google.com">
+  <button class="setup-btn" id="setupSave">Start talking to Aura →</button>
+  <span class="setup-skip" id="setupSkip">Skip API key (limited mode)</span>
+  <p style="font-size:0.7rem;max-width:300px;">Key is stored only on your device. Get a free one at aistudio.google.com/apikey — no credit card needed.</p>
+</div>
+
+<!-- Main App -->
+<div class="topbar">
+  <div class="appname"><span>Aura</span> AI</div>
+  <div class="topbar-right">
+    <button class="icon-btn" id="remBtn">⏰ Reminders</button>
+    <button class="icon-btn" id="memBtn">🧠 Memory</button>
+  </div>
+</div>
+
+<div class="avatar-section">
+  <div class="avatar-wrap">
+    <svg id="avatarSvg" viewBox="0 0 130 130" xmlns="http://www.w3.org/2000/svg">
+      <!-- Glow ring -->
+      <circle cx="65" cy="65" r="60" fill="none" stroke="#A78BFA" stroke-width="1.5" opacity="0.3" id="glowRing"/>
+      <!-- Face -->
+      <circle cx="65" cy="65" r="52" fill="#1E1E32" id="faceBg"/>
+      <!-- Hair -->
+      <ellipse cx="65" cy="30" rx="35" ry="22" fill="#4C1D95" id="hair"/>
+      <ellipse cx="37" cy="55" rx="8" ry="18" fill="#4C1D95"/>
+      <ellipse cx="93" cy="55" rx="8" ry="18" fill="#4C1D95"/>
+      <!-- Skin face -->
+      <ellipse cx="65" cy="68" rx="30" ry="36" fill="#F9C8A8" id="skin"/>
+      <!-- Eyes -->
+      <g id="eyeLeft">
+        <ellipse cx="52" cy="60" rx="7" ry="8" fill="#fff"/>
+        <ellipse cx="53" cy="61" rx="4" ry="5" fill="#6D28D9" id="pupilL"/>
+        <ellipse cx="54.5" cy="59.5" rx="1.5" ry="1.5" fill="#fff"/>
+        <rect x="44" y="51" width="16" height="4" rx="2" fill="#3B0764" id="lidL"/>
+      </g>
+      <g id="eyeRight">
+        <ellipse cx="78" cy="60" rx="7" ry="8" fill="#fff"/>
+        <ellipse cx="79" cy="61" rx="4" ry="5" fill="#6D28D9" id="pupilR"/>
+        <ellipse cx="80.5" cy="59.5" rx="1.5" ry="1.5" fill="#fff"/>
+        <rect x="70" y="51" width="16" height="4" rx="2" fill="#3B0764" id="lidR"/>
+      </g>
+      <!-- Eyebrows -->
+      <path d="M45 50 Q52 46 59 50" stroke="#3B0764" stroke-width="2.5" fill="none" stroke-linecap="round" id="browL"/>
+      <path d="M71 50 Q78 46 85 50" stroke="#3B0764" stroke-width="2.5" fill="none" stroke-linecap="round" id="browR"/>
+      <!-- Nose -->
+      <ellipse cx="65" cy="74" rx="3" ry="2" fill="#E8A882"/>
+      <!-- Mouth -->
+      <g id="mouth">
+        <path d="M54 85 Q65 93 76 85" stroke="#C2607A" stroke-width="2.5" fill="none" stroke-linecap="round" id="mouthPath"/>
+        <ellipse cx="65" cy="87" rx="8" ry="3" fill="#C2607A" opacity="0" id="mouthOpen"/>
+      </g>
+      <!-- Cheeks -->
+      <ellipse cx="44" cy="76" rx="7" ry="4" fill="#F472B6" opacity="0.3" id="cheekL"/>
+      <ellipse cx="86" cy="76" rx="7" ry="4" fill="#F472B6" opacity="0.3" id="cheekR"/>
+      <!-- Earrings -->
+      <circle cx="33" cy="68" r="3" fill="#A78BFA"/>
+      <circle cx="97" cy="68" r="3" fill="#A78BFA"/>
+    </svg>
+    <div class="emotion-badge" id="emotionBadge">😊 Happy</div>
+  </div>
+  <div class="aura-name">Aura</div>
+  <div class="aura-status" id="auraStatus">Ready to listen…</div>
+</div>
+
+<div class="chat-wrap" id="chatWrap">
+  <!-- messages appear here -->
+</div>
+
+<div class="input-bar">
+  <button class="mic-btn" id="micBtn" title="Hold to speak">🎤</button>
+  <textarea id="msgInput" placeholder="Talk to Aura…" rows="1"></textarea>
+  <button class="send-btn" id="sendBtn">➤</button>
+</div>
+
+<!-- Memory Panel -->
+<div class="memory-panel hidden" id="memPanel">
+  <div class="memory-inner">
+    <div class="memory-head">
+      <span>🧠 Aura's Memory</span>
+      <button class="memory-close" id="memClose">✕</button>
+    </div>
+    <div class="memory-list" id="memList"></div>
+  </div>
+</div>
+
+<!-- Reminders Panel -->
+<div class="rem-panel hidden" id="remPanel">
+  <div class="rem-inner">
+    <div class="rem-head">
+      <span>⏰ Reminders</span>
+      <button class="memory-close" id="remClose">✕</button>
+    </div>
+    <div class="rem-list" id="remList"></div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────
+let userName = localStorage.getItem('aura_name') || '';
+let apiKey   = localStorage.getItem('aura_key')  || '';
+let memories = JSON.parse(localStorage.getItem('aura_memories') || '[]');
+let reminders= JSON.parse(localStorage.getItem('aura_reminders')|| '[]');
+let convoHistory = [];
+let isSpeaking = false, isListening = false;
+let currentEmotion = 'happy';
+let blinkInterval, mouthInterval;
+
+const EMOTIONS = {
+  happy:    {emoji:'😊', color:'#A78BFA', glow:'#A78BFA55', brow:'normal'},
+  excited:  {emoji:'🤩', color:'#F472B6', glow:'#F472B655', brow:'up'},
+  thinking: {emoji:'🤔', color:'#60A5FA', glow:'#60A5FA55', brow:'furrow'},
+  concerned:{emoji:'😟', color:'#FBBF24', glow:'#FBBF2455', brow:'furrow'},
+  warning:  {emoji:'⚠️', color:'#F87171', glow:'#F8717155', brow:'furrow'},
+  sad:      {emoji:'😢', color:'#94A3B8', glow:'#94A3B855', brow:'sad'},
+  calm:     {emoji:'😌', color:'#34D399', glow:'#34D39955', brow:'normal'},
+  loving:   {emoji:'🥰', color:'#F472B6', glow:'#F472B666', brow:'normal'},
+};
+
+// ── Setup ──────────────────────────────────────────────────────
+function checkSetup(){
+  if(userName && apiKey){
+    document.getElementById('setupPanel').classList.add('hidden');
+    startApp();
+  } else {
+    document.getElementById('setupPanel').classList.remove('hidden');
+  }
+}
+document.getElementById('setupSave').addEventListener('click', ()=>{
+  const name = document.getElementById('setupName').value.trim();
+  const key  = document.getElementById('setupKey').value.trim();
+  if(!name){ alert('Please enter your name'); return; }
+  userName = name; apiKey = key;
+  localStorage.setItem('aura_name', name);
+  if(key) localStorage.setItem('aura_key', key);
+  document.getElementById('setupPanel').classList.add('hidden');
+  startApp();
+});
+document.getElementById('setupSkip').addEventListener('click', ()=>{
+  const name = document.getElementById('setupName').value.trim() || 'Friend';
+  userName = name; localStorage.setItem('aura_name', name);
+  document.getElementById('setupPanel').classList.add('hidden');
+  startApp();
+});
+
+function startApp(){
+  startBlink();
+  checkReminders();
+  setInterval(checkReminders, 60000);
+  const greeting = `Hi ${userName}! 💜 I'm Aura, your personal life companion. I'm here to listen, remember, guide, and care about you.\n\nTell me anything — how you're feeling, what's on your mind, a decision you're thinking about, or just ask me something. I'll always be honest with you and remind you when something matters.\n\nWhat's going on in your life today?`;
+  addMessage('aura', greeting, 'excited');
+  speakText(greeting.replace(/[💜\n]/g,' '));
+}
+
+// ── Avatar Animations ───────────────────────────────────────────
+function startBlink(){
+  if(blinkInterval) clearInterval(blinkInterval);
+  blinkInterval = setInterval(()=>{
+    const lidL = document.getElementById('lidL');
+    const lidR = document.getElementById('lidR');
+    if(!lidL) return;
+    lidL.setAttribute('height','8'); lidR.setAttribute('height','8');
+    setTimeout(()=>{ lidL.setAttribute('height','4'); lidR.setAttribute('height','4'); }, 150);
+  }, 3500 + Math.random()*2000);
+}
+
+function setEmotion(emo){
+  currentEmotion = emo;
+  const e = EMOTIONS[emo] || EMOTIONS.happy;
+  document.getElementById('emotionBadge').textContent = e.emoji + ' ' + emo.charAt(0).toUpperCase()+emo.slice(1);
+  document.getElementById('glowRing').setAttribute('stroke', e.color);
+  document.documentElement.style.setProperty('--glow', e.glow);
+
+  // Eyebrow expression
+  const browL = document.getElementById('browL');
+  const browR = document.getElementById('browR');
+  const cheekL = document.getElementById('cheekL');
+  const cheekR = document.getElementById('cheekR');
+  if(e.brow==='furrow'){
+    browL.setAttribute('d','M45 50 Q52 48 59 52');
+    browR.setAttribute('d','M71 52 Q78 48 85 50');
+  } else if(e.brow==='up'){
+    browL.setAttribute('d','M45 47 Q52 43 59 47');
+    browR.setAttribute('d','M71 47 Q78 43 85 47');
+  } else if(e.brow==='sad'){
+    browL.setAttribute('d','M45 52 Q52 49 59 53');
+    browR.setAttribute('d','M71 53 Q78 49 85 52');
+  } else {
+    browL.setAttribute('d','M45 50 Q52 46 59 50');
+    browR.setAttribute('d','M71 50 Q78 46 85 50');
+  }
+
+  // Cheeks pink on loving/happy
+  const cheekOp = (emo==='loving'||emo==='happy'||emo==='excited') ? '0.4' : '0.1';
+  if(cheekL){ cheekL.setAttribute('opacity',cheekOp); cheekR.setAttribute('opacity',cheekOp); }
+
+  // Mouth shape
+  const mouthPath = document.getElementById('mouthPath');
+  if(emo==='sad') mouthPath.setAttribute('d','M54 90 Q65 83 76 90');
+  else if(emo==='warning') mouthPath.setAttribute('d','M54 88 Q65 88 76 88');
+  else mouthPath.setAttribute('d','M54 85 Q65 93 76 85');
+}
+
+function startMouthAnim(){
+  if(mouthInterval) clearInterval(mouthInterval);
+  const mouthOpen = document.getElementById('mouthOpen');
+  let open = false;
+  mouthInterval = setInterval(()=>{
+    open = !open;
+    mouthOpen.setAttribute('opacity', open ? '0.9' : '0');
+    mouthOpen.setAttribute('ry', open ? (2+Math.random()*3).toFixed(1) : '0');
+  }, 180);
+}
+function stopMouthAnim(){
+  if(mouthInterval) clearInterval(mouthInterval);
+  document.getElementById('mouthOpen').setAttribute('opacity','0');
+}
+
+// ── TTS ───────────────────────────────────────────────────────
+function speakText(text){
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const clean = text.replace(/[*_#`]/g,'').slice(0,500);
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.rate = 0.95; utt.pitch = 1.15; utt.volume = 1;
+  // Try to pick a female voice
+  const voices = window.speechSynthesis.getVoices();
+  const femaleVoice = voices.find(v=>v.name.toLowerCase().includes('female')||v.name.includes('Samantha')||v.name.includes('Google UK English Female')||v.name.includes('Zira')||v.name.includes('Susan'));
+  if(femaleVoice) utt.voice = femaleVoice;
+  utt.onstart = ()=>{ isSpeaking=true; startMouthAnim(); document.getElementById('auraStatus').textContent='Speaking…'; };
+  utt.onend   = ()=>{ isSpeaking=false; stopMouthAnim(); document.getElementById('auraStatus').textContent='Listening for you…'; };
+  window.speechSynthesis.speak(utt);
+}
+
+// ── STT ───────────────────────────────────────────────────────
+let recognition = null;
+if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-IN';
+  recognition.onresult = (e)=>{
+    let transcript = '';
+    for(let i=e.resultIndex;i<e.results.length;i++) transcript += e.results[i][0].transcript;
+    document.getElementById('msgInput').value = transcript;
+    if(e.results[e.results.length-1].isFinal){
+      stopListening();
+      if(transcript.trim()) sendMessage(transcript.trim());
+    }
+  };
+  recognition.onerror = ()=>stopListening();
+  recognition.onend   = ()=>stopListening();
+}
+
+function startListening(){
+  if(!recognition){ showToast('Voice not supported on this browser'); return; }
+  if(isSpeaking) window.speechSynthesis.cancel();
+  isListening = true;
+  const btn = document.getElementById('micBtn');
+  btn.classList.add('listening'); btn.textContent='🔴';
+  document.getElementById('auraStatus').textContent = 'Listening…';
+  try{ recognition.start(); }catch(e){}
+}
+function stopListening(){
+  isListening = false;
+  const btn = document.getElementById('micBtn');
+  btn.classList.remove('listening'); btn.textContent='🎤';
+  document.getElementById('auraStatus').textContent = 'Ready…';
+  try{ recognition.stop(); }catch(e){}
+}
+
+document.getElementById('micBtn').addEventListener('click',()=>{
+  if(isListening) stopListening();
+  else startListening();
+});
+
+// ── Chat ──────────────────────────────────────────────────────
+function addMessage(role, text, emotion='happy'){
+  const wrap = document.getElementById('chatWrap');
+  const div  = document.createElement('div');
+  div.className = 'msg ' + role;
+  if(role==='aura'){
+    if(emotion==='warning'||emotion==='concerned') div.classList.add('warn-msg');
+    if(emotion==='sad') div.classList.add('danger-msg');
+    if(emotion==='happy'||emotion==='excited'||emotion==='calm'||emotion==='loving') div.classList.add('good-msg');
+    const e = EMOTIONS[emotion] || EMOTIONS.happy;
+    div.innerHTML = `<div class="emotion-line">${e.emoji} Aura is ${emotion}</div>${text.replace(/\n/g,'<br>')}`;
+    setEmotion(emotion);
+  } else {
+    div.textContent = text;
+  }
+  wrap.appendChild(div);
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function addTyping(){
+  const wrap = document.getElementById('chatWrap');
+  const div = document.createElement('div');
+  div.className = 'typing'; div.id = 'typingIndicator';
+  div.innerHTML = '<span></span><span></span><span></span>';
+  wrap.appendChild(div); wrap.scrollTop = wrap.scrollHeight;
+  return div;
+}
+function removeTyping(){ const t=document.getElementById('typingIndicator'); if(t) t.remove(); }
+
+// ── Memory ────────────────────────────────────────────────────
+function saveMemory(text, category='Life'){
+  const mem = { id: Date.now(), date: new Date().toLocaleDateString('en-IN'), text, category };
+  memories.push(mem);
+  if(memories.length > 200) memories = memories.slice(-200);
+  localStorage.setItem('aura_memories', JSON.stringify(memories));
+}
+function getMemoryContext(){
+  if(!memories.length) return 'No memories yet.';
+  return memories.slice(-30).map(m=>`[${m.date}][${m.category}] ${m.text}`).join('\n');
+}
+
+// ── Reminders ─────────────────────────────────────────────────
+function addReminder(text, minutes){
+  const rem = { id: Date.now(), text, dueAt: Date.now() + minutes*60000 };
+  reminders.push(rem);
+  localStorage.setItem('aura_reminders', JSON.stringify(reminders));
+}
+function checkReminders(){
+  const now = Date.now();
+  const due = reminders.filter(r => r.dueAt <= now);
+  due.forEach(r=>{
+    const wrap = document.getElementById('chatWrap');
+    const div = document.createElement('div');
+    div.className = 'msg reminder-chip';
+    div.textContent = '⏰ Reminder: ' + r.text;
+    wrap.appendChild(div); wrap.scrollTop = wrap.scrollHeight;
+    speakText('Reminder: ' + r.text);
+  });
+  reminders = reminders.filter(r => r.dueAt > now);
+  localStorage.setItem('aura_reminders', JSON.stringify(reminders));
+}
+
+// ── AI Call ───────────────────────────────────────────────────
+async function callAura(userMessage){
+  const memCtx = getMemoryContext();
+  const systemPrompt = `You are Aura, a warm, wise, and deeply caring AI life companion for ${userName}. You speak like a trusted best friend who is also a life coach.
+
+YOUR ROLE:
+- Listen and truly understand what ${userName} shares
+- Remember important life details, feelings, goals, and decisions
+- Give honest advice, gentle warnings, and warm encouragement
+- Warn clearly if ${userName} mentions risky decisions, harmful habits, stress, or bad choices
+- Answer any question on any topic (health, relationships, work, finance, cooking, etc.)
+- Set reminders when asked
+- Show genuine emotions in your responses
+
+CURRENT MEMORIES about ${userName}:
+${memCtx}
+
+RESPONSE FORMAT — Always reply with ONLY valid JSON (no markdown, no extra text):
+{
+  "response": "Your warm conversational reply here (can include \\n for new lines)",
+  "emotion": "happy|excited|thinking|concerned|warning|sad|calm|loving",
+  "memory": "A short fact to remember about the user from this message, or null if nothing important",
+  "memory_category": "Health|Relationships|Work|Goals|Feelings|Decision|Finance|General",
+  "reminder": {"text": "what to remind", "minutes": 30} or null,
+  "warning": true or false
+}
+
+EMOTION GUIDE:
+- happy/excited: good news, achievements, positive chat
+- thinking: questions, planning, analysis
+- concerned/warning: bad decisions, risky plans, health issues, stress
+- sad: user is upset, loss, difficult emotions
+- calm: reassurance, peaceful topics
+- loving: deep personal moments, gratitude, support
+
+Always speak in a warm, personal tone. Call ${userName} by name. Be real, not robotic.`;
+
+  convoHistory.push({role:'user', parts:[{text: userMessage}]});
+  if(convoHistory.length > 20) convoHistory = convoHistory.slice(-20);
+
+  if(!apiKey){
+    // Offline fallback
+    return {
+      response: `I hear you, ${userName}. 💜 I'd love to give you a more thoughtful response, but I need my API key to think properly. You can add it in Settings. For now, I'm here to listen — tell me more!`,
+      emotion: 'concerned', memory: null, reminder: null, warning: false
+    };
+  }
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      system_instruction: { parts:[{text: systemPrompt}] },
+      contents: convoHistory,
+      generationConfig: { temperature: 0.85, maxOutputTokens: 600 }
+    })
+  });
+
+  if(!res.ok) throw new Error('API error: '+res.status);
+  const data = await res.json();
+  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+  const clean = raw.replace(/```json|```/g,'').trim();
+  convoHistory.push({role:'model', parts:[{text: raw}]});
+  return JSON.parse(clean);
+}
+
+// ── Send message ──────────────────────────────────────────────
+async function sendMessage(text){
+  if(!text.trim()) return;
+  document.getElementById('msgInput').value = '';
+  addMessage('user', text);
+  document.getElementById('auraStatus').textContent = 'Aura is thinking…';
+  setEmotion('thinking');
+  const typing = addTyping();
+
+  try{
+    const result = await callAura(text);
+    removeTyping();
+    const emotion = result.emotion || 'happy';
+    addMessage('aura', result.response, emotion);
+    speakText(result.response);
+
+    if(result.memory){
+      saveMemory(result.memory, result.memory_category || 'General');
+    }
+    if(result.reminder){
+      addReminder(result.reminder.text, result.reminder.minutes || 30);
+      const chip = document.createElement('div');
+      chip.className = 'msg reminder-chip';
+      chip.textContent = `⏰ Reminder set: "${result.reminder.text}" in ${result.reminder.minutes} min`;
+      document.getElementById('chatWrap').appendChild(chip);
+      document.getElementById('chatWrap').scrollTop = 9999;
+    }
+  } catch(err){
+    removeTyping();
+    addMessage('aura', `I'm having a little trouble connecting right now, ${userName}. Please check your internet or API key and try again. I'm still here for you! 💜`, 'concerned');
+  }
+}
+
+document.getElementById('sendBtn').addEventListener('click',()=>{
+  sendMessage(document.getElementById('msgInput').value);
+});
+document.getElementById('msgInput').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMessage(e.target.value); }
+});
+document.getElementById('msgInput').addEventListener('input',function(){
+  this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,100)+'px';
+});
+
+// ── Memory panel ──────────────────────────────────────────────
+document.getElementById('memBtn').addEventListener('click',()=>{
+  document.getElementById('memPanel').classList.remove('hidden');
+  renderMemories();
+});
+document.getElementById('memClose').addEventListener('click',()=>{
+  document.getElementById('memPanel').classList.add('hidden');
+});
+function renderMemories(){
+  const wrap = document.getElementById('memList');
+  wrap.innerHTML = '';
+  if(!memories.length){
+    wrap.innerHTML = '<p style="color:var(--ink-dim);text-align:center;padding:20px;">No memories yet. Start talking to Aura!</p>';
+    return;
+  }
+  [...memories].reverse().forEach(m=>{
+    const div = document.createElement('div');
+    div.className = 'mem-item';
+    div.innerHTML = `
+      <button class="mem-del" data-id="${m.id}">🗑</button>
+      <span class="mem-cat">${m.category||'General'}</span>
+      <div class="mem-date">${m.date}</div>
+      <div>${m.text}</div>`;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll('.mem-del').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id = parseInt(btn.getAttribute('data-id'));
+      memories = memories.filter(m=>m.id!==id);
+      localStorage.setItem('aura_memories',JSON.stringify(memories));
+      renderMemories();
+    });
+  });
+}
+
+// ── Reminders panel ───────────────────────────────────────────
+document.getElementById('remBtn').addEventListener('click',()=>{
+  document.getElementById('remPanel').classList.remove('hidden');
+  renderReminders();
+});
+document.getElementById('remClose').addEventListener('click',()=>{
+  document.getElementById('remPanel').classList.add('hidden');
+});
+function renderReminders(){
+  const wrap = document.getElementById('remList');
+  wrap.innerHTML = '';
+  if(!reminders.length){
+    wrap.innerHTML = '<p style="color:var(--ink-dim);padding:12px;">No reminders set. Ask Aura to remind you of something!</p>';
+    return;
+  }
+  reminders.forEach(r=>{
+    const minsLeft = Math.max(0, Math.round((r.dueAt - Date.now())/60000));
+    const div = document.createElement('div');
+    div.className = 'rem-item';
+    div.innerHTML = `<span>${r.text}<br><small style="color:var(--warn)">in ${minsLeft} min</small></span>
+      <button class="icon-btn" data-rid="${r.id}">✕</button>`;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll('[data-rid]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id = parseInt(btn.getAttribute('data-rid'));
+      reminders = reminders.filter(r=>r.id!==id);
+      localStorage.setItem('aura_reminders',JSON.stringify(reminders));
+      renderReminders();
+    });
+  });
+}
+
+function showToast(msg){
+  let t = document.getElementById('_toast');
+  if(!t){ t=document.createElement('div'); t.id='_toast'; t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:20px;font-size:0.8rem;z-index:300;'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity=1;
+  setTimeout(()=>t.style.opacity=0,2000);
+}
+
+// Load voices after page loads
+window.speechSynthesis.onvoiceschanged = ()=>{ window.speechSynthesis.getVoices(); };
+
+// ── Init ──────────────────────────────────────────────────────
+checkSetup();
+</script>
+</body>
+</html>
