@@ -103,10 +103,10 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);height:100dvh
   <h2>Meet <span>Aura</span></h2>
   <p>Your personal AI life companion — she listens, remembers, guides, and cares about you.</p>
   <input class="setup-name" id="setupName" placeholder="Your name (so Aura can call you)">
-  <input class="setup-input" id="setupKey" placeholder="Gemini API key (AIza...) — free at aistudio.google.com">
+  <input class="setup-input" id="setupKey" placeholder="Groq API key (gsk_...) — free at console.groq.com">
   <button class="setup-btn" id="setupSave">Start talking to Aura →</button>
   <span class="setup-skip" id="setupSkip">Skip API key (limited mode)</span>
-  <p style="font-size:0.7rem;max-width:300px;">Key is stored only on your device. Get a free one at aistudio.google.com/apikey — no credit card needed.</p>
+  <p style="font-size:0.7rem;max-width:300px;">Key is stored only on your device. Get a free one at console.groq.com → API Keys — no credit card needed. Key starts with gsk_</p>
 </div>
 
 <!-- Main App -->
@@ -489,31 +489,34 @@ Always speak in a warm, personal tone. Call ${userName} by name. Be real, not ro
     };
   }
 
-  // Support both AIza... (v1beta key auth) and AQ... (OAuth-style, use Authorization header)
-  const isOAuthKey = apiKey.startsWith('AQ.') || apiKey.startsWith('ya29.');
-  const url = isOAuthKey
-    ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`
-    : `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-  const headers = {'Content-Type':'application/json'};
-  if(isOAuthKey) headers['Authorization'] = `Bearer ${apiKey}`;
-
-  const res = await fetch(url, {
+  // Groq API - free tier, permanent keys starting with gsk_
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method:'POST',
-    headers,
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
     body: JSON.stringify({
-      system_instruction: { parts:[{text: systemPrompt}] },
-      contents: convoHistory,
-      generationConfig: { temperature: 0.85, maxOutputTokens: 600 }
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        { role:'system', content: systemPrompt },
+        ...convoHistory.map(m=>({
+          role: m.role==='model'?'assistant':'user',
+          content: m.parts[0].text
+        }))
+      ],
+      temperature: 0.85,
+      max_tokens: 600
     })
   });
 
   if(!res.ok){
     const errText = await res.text();
-    console.error('Gemini error:', errText);
+    console.error('Groq error:', errText);
     throw new Error('API error: '+res.status+' '+errText.slice(0,120));
   }
   const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+  const raw = data.choices?.[0]?.message?.content || '{}';
   const clean = raw.replace(/```json|```/g,'').trim();
   convoHistory.push({role:'model', parts:[{text: raw}]});
   try{ return JSON.parse(clean); }
@@ -551,7 +554,7 @@ async function sendMessage(text){
     removeTyping();
     const errMsg = err.message || '';
     let hint = '';
-    if(errMsg.includes('401')||errMsg.includes('403')) hint = ' (API key seems invalid or expired — try regenerating it at aistudio.google.com/apikey)';
+    if(errMsg.includes('401')||errMsg.includes('403')) hint = ' (API key invalid — make sure you copied the full gsk_... key from console.groq.com)';
     else if(errMsg.includes('429')) hint = ' (Too many requests — wait a moment and try again)';
     else if(errMsg.includes('Failed to fetch')) hint = ' (No internet connection detected)';
     addMessage('aura', `I had trouble connecting just now, ${userName}.${hint} 💜\n\nError: ${errMsg.slice(0,100)}`, 'concerned');
