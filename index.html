@@ -103,10 +103,10 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);height:100dvh
   <h2>Meet <span>Aura</span></h2>
   <p>Your personal AI life companion — she listens, remembers, guides, and cares about you.</p>
   <input class="setup-name" id="setupName" placeholder="Your name (so Aura can call you)">
-  <input class="setup-input" id="setupKey" placeholder="Groq API key (gsk_...) — free at console.groq.com">
+  <input class="setup-input" id="setupKey" placeholder="HuggingFace token (hf_...) — free at huggingface.co/settings/tokens">
   <button class="setup-btn" id="setupSave">Start talking to Aura →</button>
   <span class="setup-skip" id="setupSkip">Skip API key (limited mode)</span>
-  <p style="font-size:0.7rem;max-width:300px;">Key is stored only on your device. Get a free one at console.groq.com → API Keys — no credit card needed. Key starts with gsk_</p>
+  <p style="font-size:0.7rem;max-width:300px;">Key stored only on your device. Get free at huggingface.co → Settings → Access Tokens → New Token. No credit card needed. Key starts with hf_</p>
 </div>
 
 <!-- Main App -->
@@ -199,6 +199,25 @@ body{background:var(--bg);color:var(--ink);font-family:var(--font);height:100dvh
   </div>
 </div>
 
+<script>
+// ── Auto-updating Service Worker ──────────────────────────────
+if('serviceWorker' in navigator){
+  window.addEventListener('load', async () => {
+    try{
+      const reg = await navigator.serviceWorker.register('service-worker.js');
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if(newSW.state === 'installed' && navigator.serviceWorker.controller){
+            newSW.postMessage('SKIP_WAITING');
+          }
+        });
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+    }catch(e){}
+  });
+}
+</script>
 <script>
 // ── State ──────────────────────────────────────────────────────
 let userName = localStorage.getItem('aura_name') || '';
@@ -489,15 +508,15 @@ Always speak in a warm, personal tone. Call ${userName} by name. Be real, not ro
     };
   }
 
-  // Groq API - free tier, permanent keys starting with gsk_
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  // HuggingFace free inference — works globally, no credit card needed, key starts with hf_
+  const res = await fetch('https://api-inference.huggingface.co/v1/chat/completions', {
     method:'POST',
     headers:{
       'Content-Type':'application/json',
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'mistralai/Mistral-7B-Instruct-v0.3',
       messages: [
         { role:'system', content: systemPrompt },
         ...convoHistory.map(m=>({
@@ -506,13 +525,14 @@ Always speak in a warm, personal tone. Call ${userName} by name. Be real, not ro
         }))
       ],
       temperature: 0.85,
-      max_tokens: 600
+      max_tokens: 600,
+      stream: false
     })
   });
 
   if(!res.ok){
     const errText = await res.text();
-    console.error('Groq error:', errText);
+    console.error('HF error:', errText);
     throw new Error('API error: '+res.status+' '+errText.slice(0,120));
   }
   const data = await res.json();
@@ -554,7 +574,7 @@ async function sendMessage(text){
     removeTyping();
     const errMsg = err.message || '';
     let hint = '';
-    if(errMsg.includes('401')||errMsg.includes('403')) hint = ' (API key invalid — make sure you copied the full gsk_... key from console.groq.com)';
+    if(errMsg.includes('401')||errMsg.includes('403')) hint = ' (Token invalid — copy the full hf_... token from huggingface.co/settings/tokens)';
     else if(errMsg.includes('429')) hint = ' (Too many requests — wait a moment and try again)';
     else if(errMsg.includes('Failed to fetch')) hint = ' (No internet connection detected)';
     addMessage('aura', `I had trouble connecting just now, ${userName}.${hint} 💜\n\nError: ${errMsg.slice(0,100)}`, 'concerned');
